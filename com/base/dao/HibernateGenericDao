@@ -1,0 +1,157 @@
+import org.hibernate.Query;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
+import org.hibernate.criterion.DetachedCriteria;
+import org.hibernate.criterion.Restrictions;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.orm.hibernate3.support.HibernateDaoSupport;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
+
+import javax.sql.DataSource;
+import java.io.Serializable;
+import java.lang.reflect.ParameterizedType;
+import java.util.List;
+
+public abstract class HibernateGenericDao<T, ID extends Serializable> extends HibernateDaoSupport implements
+        IBaseDao<T, ID> {
+
+    private Class<T> persistentClass;
+
+    protected JdbcTemplate jdbcTemplate;
+
+    @Autowired
+    public void setDataSource(DataSource dataSource) {
+        this.jdbcTemplate = new JdbcTemplate(dataSource);
+    }
+
+    @Autowired
+    public void setSessionFactoryMain(SessionFactory sessionFactory) {
+        super.setSessionFactory(sessionFactory);
+    }
+
+    @SuppressWarnings("unchecked")
+    public HibernateGenericDao() {
+        // 获取持久化对象的类型
+        this.persistentClass = (Class<T>) ((ParameterizedType) getClass().getGenericSuperclass())
+                .getActualTypeArguments()[0];
+    }
+
+    public Class<T> getPersistentClass() {
+        return persistentClass;
+    }
+
+    /**
+     * 通过id查找
+     *
+     * @param id
+     * @return
+     */
+    public T findById(ID id) {
+        return (T) this.getHibernateTemplate().get(getPersistentClass(), id);
+    }
+
+    @SuppressWarnings("unchecked")
+    public ID save(T entity) {
+        return (ID) this.getHibernateTemplate().save(entity);
+    }
+
+    public void batchSave(List<T> list) {
+        if (!CollectionUtils.isEmpty(list)) {
+            for (T t : list) {
+                this.getHibernateTemplate().save(t);
+            }
+        }
+    }
+
+    /**
+     * 删除
+     */
+    public void delete(T entity) {
+        this.getHibernateTemplate().delete(entity);
+    }
+
+    public void deleteByProperty(String propertyName, Object value) {
+        List<T> result = findByProperty(propertyName, value);
+        this.getHibernateTemplate().deleteAll(result);
+    }
+
+    /**
+     * saveOrUpdate
+     */
+    public void saveOrUpdate(T entity) {
+        this.getHibernateTemplate().saveOrUpdate(entity);
+    }
+
+    /**
+     * 更新
+     */
+    @Transactional
+    public void update(T entity) {
+        this.getHibernateTemplate().update(entity);
+    }
+
+    /**
+     * 通过属性查找
+     *
+     * @param propertyName 属性名称
+     * @param value        属性的值
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public List<T> findByProperty(String propertyName, Object value) {
+        DetachedCriteria criteria = DetachedCriteria.forClass(persistentClass);
+        criteria.add(Restrictions.eq(propertyName, value));
+        return getHibernateTemplate().findByCriteria(criteria);
+    }
+
+    @Override
+    public T findFirstByProperties(String hql, Object... params) {
+        List<T> list = findByProperties(hql, params);
+        if (list != null && !list.isEmpty()) {
+            return list.get(0);
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    public List<T> findByProperties(String hql, Object... params) {
+        Session s = getSession();
+        Query q = s.createQuery(hql);
+        int col = 0;
+        for (Object val : params) {
+            q.setParameter(col++, val);
+        }
+        List<T> res = q.list();
+        releaseSession(s);
+        return res;
+    }
+
+    @Override
+    public T findFirstByProperty(String property, Object value) {
+        List<T> list = findByProperty(property, value);
+        if (list != null && !list.isEmpty()) {
+            return list.get(0);
+        }
+        return null;
+    }
+
+    @Override
+    public void exeHQL(String hql, Object... params) {
+        Session s = getSession();
+        Query q = s.createQuery(hql);
+        int i = 0;
+        for (Object ob : params) {
+            q.setParameter(i++, ob);
+        }
+        q.executeUpdate();
+        releaseSession(s);
+    }
+
+    @Override
+    public void exeSQL(String sql, Object... params) {
+        jdbcTemplate.update(sql, params);
+    }
+
+}
