@@ -1,0 +1,44 @@
+package com.bbkmobile.iqoo.platform.base.dao;
+
+import java.io.Serializable;
+import java.util.List;
+
+/**
+ * Created by 11009853 on 2016/10/13.
+ */
+public interface IBaseDao<T, ID extends Serializable> {
+
+    ID save(T entity);
+
+    void batchSave(List<T> list);
+
+    void saveOrUpdate(T entity);
+
+    void update(T entity);
+
+    void delete(T entity);
+
+    void deleteByProperty(String propertyName, Object value);
+
+    T findById(ID id);
+
+    List<T> findByProperty(String propertyName, Object value);
+
+    T findFirstByProperty(String property, Object value);
+
+    List<T> findByProperties(String hql, Object... params);
+
+    T findFirstByProperties(String hql, Object... params);
+
+    void exeHQL(String hql, Object... params);
+
+    void exeSQL(String sql, Object... params);
+
+    /**
+     * 获得持久化对象的类型
+     *
+     * @return
+     */
+    Class<T> getPersistentClass();
+
+}
