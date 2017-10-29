@@ -1,5 +1,6 @@
 public static void main(String[] args) {
-  String path = "";
+
+        String path = "";
 
         MessageDigest md = MessageDigest.getInstance("MD5");
         FileInputStream fis = new FileInputStream(path);
